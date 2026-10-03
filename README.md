@@ -6,6 +6,9 @@ running on a laptop CPU with no GPU and no internet.
 
 Built at Hacktoberfest Hack Day Chandigarh (MLH), 3 Oct 2026, solo, for *Best Open-Source AI Project*.
 
+**Hosted replay (recorded, no live model):** https://hisaab-kitaab-eta.vercel.app  
+The real thing runs locally, see [Run it](#run-it).
+
 ## The problem
 
 A 1B model (Gemma 3 1B, QAT Q4_0) is private, free and offline, but it is unreliable. It picks the wrong
