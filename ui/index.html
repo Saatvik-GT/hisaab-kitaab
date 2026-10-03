@@ -215,12 +215,14 @@ async function bench() {
     out([["  " + m.padEnd(16), "hi"], [`${r.parsed}/${r.n}`.padEnd(8) + `${r.tool_ok}/${r.n}`.padEnd(6) + `${r.result_ok}/${r.n}`.padEnd(8) + r.sec_per_task, ""]]);
 }
 
-function renderResult(label, r, cls) {
+function renderResult(label, r, cls, other) {
   if (!r) return;
   if (r.error) return out([["  " + label + " ", cls], ["server error: " + r.error, "bad"]]);
   out([["  " + label + " ", cls], [(r.tool || "none").padEnd(16), "hi"], [fmtArgs(r.args), "dim"]]);
   const why = r.result === "parse_fail" ? "model did not produce a valid tool call" : r.result;
   out([["      ", ""], r.ok ? ["-> " + r.say, "ok"] : ["-> failed: " + why, "bad"], [`   ${r.secs}s · ${r.calls} call${r.calls == 1 ? "" : "s"} · ${r.tok_out} tok out`, "dim"]]);
+  if (r.ok && other && other.ok && r.result !== other.result)
+    out([["      ! ran without error, but disagrees with the harness: likely a wrong tool or wrong numbers", "bad"]]);
   if (!r.ok && r.result === "parse_fail" && r.raw) out([["      model said: ", "dim"], [JSON.stringify(r.raw).slice(0, 110), "dim"]]);
 }
 
@@ -234,7 +236,7 @@ async function ask(q) {
     spin.remove();
     out([["  clean     ", "dim"], [r.clean, ""]]);
     out([["  shortlist ", "dim"], [r.shortlist.join(", "), ""]]);
-    renderResult("1B alone", r.a, "dim");
+    renderResult("1B alone", r.a, "dim", r.k);
     renderResult("harness ", r.k, "ok");
     record(r);
   } catch (e) {
