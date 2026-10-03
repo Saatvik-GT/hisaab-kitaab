@@ -63,6 +63,12 @@ canvas.tall { height: 70px; }
 #prompt { color: var(--ok); white-space: nowrap; }
 #in { flex: 1; background: transparent; border: 0; outline: 0; color: var(--hi); font: inherit; caret-color: var(--ok); }
 #in:disabled { opacity: .5; }
+#in { caret-shape: block; }
+::selection { background: var(--fg); color: var(--bg); }
+#term .l { animation: reveal .14s steps(2, end) both; }
+@keyframes reveal { from { opacity: 0; } to { opacity: 1; } }
+.g { color: var(--line); }
+@media (prefers-reduced-motion: reduce) { #term .l { animation: none; } }
 
 /* bottom: examples */
 #bottom { display: grid; grid-template-columns: 1fr 300px; gap: 10px; min-height: 0; }
@@ -222,16 +228,31 @@ const term = $("term");
 function out(parts, cls = "") {
   const d = document.createElement("div"); d.className = "l " + cls;
   (Array.isArray(parts) ? parts : [[parts]]).forEach(([t, c]) => { const s = document.createElement("span"); s.textContent = t; if (c) s.className = c; d.appendChild(s); });
+  if (S.stagger != null) d.style.animationDelay = (S.stagger++ * 45) + "ms";
   term.appendChild(d); term.scrollTop = term.scrollHeight; return d;
 }
 const fmtArgs = a => a ? Object.entries(a).map(([k, v]) => k + "=" + v).join(" ") : "none";
-function banner() {
-  out([["hisaab-kitaab ", "hi"], ["· offline money maths for a 1B model", "dim"]]);
-  out("type a question in english, hinglish, hindi or punjabi. type help for commands.", "dim");
+const OK = t => [["[  ok  ] ", "ok"], [t, ""]], BAD = t => [["[ fail ] ", "bad"], [t, ""]];
+async function boot() {
+  S.stagger = 0;
+  out([["hisaab-kitaab", "hi"], [" · offline money maths for a 1B model · en / hinglish / hi / pa", "dim"]]);
+  await ready;
+  out(REPLAY ? [["[replay] ", "bad"], ["static page: answers recorded from real runs, no model here", ""]] : OK("ui server"));
+  try {
+    const s = await api("/api/status");
+    const name = (s.model || "").split("/").pop().replace(/:.*/, "").replace("-GGUF", "").toLowerCase();
+    out(s.up ? OK(`model server   ${name}${s.ping != null ? "  ping " + s.ping + " ms" : ""}`) : BAD("model server unreachable: start llama.cpp on :9931"));
+  } catch (e) { out(BAD("status check failed")); }
+  const b = BENCH, K = b["K shortlist"], A = b["A plain JSON"], Ku = b["K shortlist (unseen)"];
+  out(K ? OK(`benchmark      model alone ${A.result_ok}/${A.n} -> harness ${K.result_ok}/${K.n}` + (Ku ? `   unseen ${Ku.result_ok}/${Ku.n}` : "")) : BAD("no bench.json"));
+  out(OK(`tools          ${TOOLS.length} loaded, grammar-constrained`));
+  out([["", ""]]);
+  out([["type a question, ", "dim"], ["examples", "hi"], [" to list samples, ", "dim"], ["help", "hi"], [" for commands. tab completes.", "dim"]]);
+  S.stagger = null;
 }
 function help() {
-  [["help", "this list"], ["bench", "print the 20-task results table"], ["baseline off|on", "skip / include the unaided 1B run (halves latency)"],
-   ["clear", "clear the screen"]].forEach(([c, d]) => out([["  " + c.padEnd(17), "hi"], [d, "dim"]]));
+  [["help", "this list"], ["examples", "list sample questions"], ["run <n>", "run sample question n"], ["bench", "print the results tables"],
+   ["baseline off|on", "skip / include the unaided 1B run (halves latency)"], ["clear", "clear the screen"]].forEach(([c, d]) => out([["  " + c.padEnd(17), "hi"], [d, "dim"]]));
   out("anything else is sent to the model.", "dim");
 }
 
@@ -245,27 +266,29 @@ async function bench() {
 
 function renderResult(label, r, cls, other) {
   if (!r) return;
-  if (r.error) return out([["  " + label + " ", cls], ["server error: " + r.error, "bad"]]);
-  out([["  " + label + " ", cls], [(r.tool || "none").padEnd(16), "hi"], [fmtArgs(r.args), "dim"]]);
-  const why = r.result === "parse_fail" ? "model did not produce a valid tool call" : r.result;
-  out([["      ", ""], r.ok ? ["-> " + r.say, "ok"] : ["-> failed: " + why, "bad"], [`   ${r.secs}s · ${r.calls} call${r.calls == 1 ? "" : "s"} · ${r.tok_out} tok out`, "dim"]]);
+  if (r.error) return out([["  └─ ", "g"], [label + " ", cls], ["server error: " + r.error, "bad"]]);
+  out([["  ┌─ ", "g"], [label, cls], [" · ", "dim"], [r.tool || "no tool", "hi"]]);
+  out([["  │  ", "g"], ["args  ", "dim"], [fmtArgs(r.args), ""]]);
+  if (!r.ok && r.result === "parse_fail" && r.raw) out([["  │  ", "g"], ["model said  ", "dim"], [JSON.stringify(r.raw).slice(0, 110), "dim"]]);
   if (r.ok && other && other.ok && r.result !== other.result)
-    out([["      ! ran without error, but disagrees with the harness: likely a wrong tool or wrong numbers", "bad"]]);
-  if (!r.ok && r.result === "parse_fail" && r.raw) out([["      model said: ", "dim"], [JSON.stringify(r.raw).slice(0, 110), "dim"]]);
+    out([["  │  ", "g"], ["! ran, but disagrees with the harness: likely wrong tool or numbers", "bad"]]);
+  const why = r.result === "parse_fail" ? "model did not produce a valid tool call" : r.result;
+  out([["  └─ ", "g"], r.ok ? ["✓ " + r.say, "ok"] : ["✗ " + why, "bad"], [`   ${r.secs}s · ${r.calls} call${r.calls == 1 ? "" : "s"} · ${r.tok_out} tok`, "dim"]]);
 }
 
 async function ask(q) {
-  S.busy = true; $("in").disabled = true; $("prompt").textContent = "running…";
+  S.busy = true; $("in").disabled = true; $("prompt").textContent = "[running]";
   out([["> ", "ok"], [q, "hi"]], "cmd");
   const t0 = performance.now(), spin = out("  thinking…", "dim");
   const tick = setInterval(() => spin.textContent = "  thinking… " + ((performance.now() - t0) / 1000).toFixed(0) + "s", 500);
   try {
     await ready; const r = await api("/api/ask", { q, baseline: S.baseline });
-    spin.remove();
-    out([["  clean     ", "dim"], [r.clean, ""]]);
-    out([["  shortlist ", "dim"], [r.shortlist.join(", "), ""]]);
+    spin.remove(); S.stagger = 0;
+    out([["  clean      ", "dim"], [r.clean, ""]]);
+    out([["  shortlist  ", "dim"], [r.shortlist.join(", "), ""]]);
     renderResult("1B alone", r.a, "dim", r.k);
-    renderResult("harness ", r.k, "ok");
+    renderResult("harness", r.k, "ok");
+    S.stagger = null;
     record(r);
   } catch (e) {
     spin.remove(); out("  " + (REPLAY ? e.message : "request failed: " + e), "bad");
@@ -302,12 +325,19 @@ $("in").addEventListener("keydown", e => {
   const el = e.target;
   if (e.key === "ArrowUp" && S.hist.length) { S.hi = Math.max(0, (S.hi < 0 ? S.hist.length : S.hi) - 1); el.value = S.hist[S.hi]; e.preventDefault(); }
   else if (e.key === "ArrowDown" && S.hi >= 0) { S.hi++; el.value = S.hist[S.hi] || ""; if (S.hi >= S.hist.length) S.hi = -1; e.preventDefault(); }
+  else if (e.key === "Tab") {
+    e.preventDefault();
+    const hit = ["help", "examples", "run ", "bench", "baseline off", "baseline on", "clear"].filter(c => c.startsWith(el.value.toLowerCase()) && el.value);
+    if (hit.length === 1) el.value = hit[0]; else if (hit.length) out("  " + hit.join("   "), "dim");
+  }
   else if (e.key === "Enter" && !S.busy) {
     const q = el.value.trim(); el.value = ""; S.hi = -1; if (!q) return;
     S.hist.push(q);
     const w = q.toLowerCase();
     if (w === "help") { out([["> ", "ok"], [q, "hi"]], "cmd"); help(); }
     else if (w === "clear") term.innerHTML = "";
+    else if (w === "examples" || w === "ls") { out([["> ", "ok"], [q, "hi"]], "cmd"); EXAMPLES.forEach(([lang, x], i) => out([["  " + String(i + 1).padStart(2) + "  ", "hi"], [lang.padEnd(9), "dim"], [x, ""]])); out("  run <n> to send one", "dim"); }
+    else if (/^run \d+$/.test(w)) { const ex = EXAMPLES[+w.split(" ")[1] - 1]; ex ? ask(ex[1]) : out("  no example " + w.split(" ")[1], "bad"); }
     else if (w === "bench") { out([["> ", "ok"], [q, "hi"]], "cmd"); bench(); }
     else if (w.startsWith("baseline")) { S.baseline = !w.endsWith("off"); out([["> ", "ok"], [q, "hi"]], "cmd"); out("  baseline " + (S.baseline ? "on" : "off"), "dim"); }
     else ask(q);
@@ -352,7 +382,7 @@ async function poll() {
 ready.then(() => { setInterval(poll, 1000); poll(); });
 setInterval(() => $("clock").textContent = new Date().toLocaleTimeString("en-GB"), 1000);
 addEventListener("resize", redraw);
-banner();
+boot();
 </script>
 </body>
 </html>
