@@ -28,6 +28,9 @@ MODEL = "ggml-org/gemma-3-1b-it-qat-GGUF:Q4_0"
 
 
 # ---------------------------------------------------------------- LLM client
+STATS = []  # one dict per model call (tokens, seconds, tokens/s); ui.py reads this
+
+
 def llm(messages, grammar=None, max_tokens=120, cache=True):
     body = {
         "model": MODEL,
@@ -41,10 +44,14 @@ def llm(messages, grammar=None, max_tokens=120, cache=True):
     req = urllib.request.Request(
         URL, json.dumps(body).encode(), {"Content-Type": "application/json"}
     )
+    t0 = time.time()
     try:
         resp = json.load(urllib.request.urlopen(req, timeout=60))
     except urllib.error.HTTPError as e:
         raise RuntimeError("server said: " + e.read().decode()) from None
+    usage, timings = resp.get("usage", {}), resp.get("timings", {})
+    STATS.append(dict(prompt=usage.get("prompt_tokens", 0), out=usage.get("completion_tokens", 0),
+                      secs=time.time() - t0, tps=timings.get("predicted_per_second")))
     return resp["choices"][0]["message"]["content"]
 
 
@@ -325,11 +332,13 @@ def run_call(call):
 
 # per-task answers are saved here; delete the file after changing a mode
 CACHE_FILE = "results_cache.json"
+BENCH_FILE = "bench.json"  # summary table, committed; the UI draws its benchmark panel from it
 
 
 def evaluate():
     sys.stdout.reconfigure(encoding="utf-8")  # Hindi/Punjabi text on a Windows console
     names = list(TOOLS)
+    bench = json.load(open(BENCH_FILE, encoding="utf-8")) if os.path.exists(BENCH_FILE) else {}
     cache = json.load(open(CACHE_FILE, encoding="utf-8")) if os.path.exists(CACHE_FILE) else {}
     print("%-14s %8s %8s %8s %8s" % ("mode", "parsed", "tool_ok", "result_ok", "sec/task"))
     for mode_name, fn in MODES.items():
@@ -359,6 +368,10 @@ def evaluate():
         n = len(TASKS)
         print("%-14s %5d/%d %5d/%d %6d/%d %8.1f" % (
             mode_name, parsed, n, tool_ok, n, result_ok, n, secs / n))
+        bench[mode_name] = dict(n=n, parsed=parsed, tool_ok=tool_ok, result_ok=result_ok,
+                                sec_per_task=round(secs / n, 2))
+        with open(BENCH_FILE, "w", encoding="utf-8") as f:
+            json.dump(bench, f, indent=1, ensure_ascii=False)
 
 
 if __name__ == "__main__":
