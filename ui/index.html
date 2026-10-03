@@ -69,9 +69,9 @@ canvas.tall { height: 70px; }
         padding: 5px 8px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip:hover { border-color: var(--fg); color: var(--hi); }
 .chip small { display: block; color: var(--dim); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
-#tools { display: grid; grid-template-columns: 1fr; gap: 1px; }
-#tools div { display: grid; grid-template-columns: 112px 1fr; gap: 8px; font-size: 11px; }
-#tools div span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tools { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; align-content: start; }
+#tools div { display: flex; justify-content: space-between; font-size: 11px; min-width: 0; }
+#tools div span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 1000px) {
   body { overflow: auto; height: auto; grid-template-rows: auto; }
@@ -264,7 +264,7 @@ function paintSession() {
   $("vk").style.transform = `scaleX(${frac(S.valid.k)})`; $("vkt").textContent = S.valid.k.join("/");
   $("tin").textContent = S.tin; $("tout").textContent = S.tout; $("ncalls").textContent = S.calls;
   $("tpsv").textContent = S.tps.length ? S.tps[S.tps.length - 1].toFixed(1) : "--";
-  document.querySelectorAll("#tools div").forEach(d => { d.lastChild.textContent = S.toolUse[d.dataset.t] ? "×" + S.toolUse[d.dataset.t] : d.dataset.s; });
+  document.querySelectorAll("#tools div").forEach(d => { d.lastChild.textContent = S.toolUse[d.dataset.t] ? "×" + S.toolUse[d.dataset.t] : ""; });
   redraw();
 }
 
@@ -293,7 +293,7 @@ $("chips").append(...EXAMPLES.map(([lang, q]) => {
 }));
 $("tools").append(...TOOLS.map(([t, s]) => {
   const d = document.createElement("div"); d.dataset.t = t; d.dataset.s = s;
-  d.innerHTML = "<span class='dim'></span><span class='dim'></span>"; d.firstChild.textContent = t; d.lastChild.textContent = s; return d;
+  d.innerHTML = "<span class='dim'></span><span class='dim'></span>"; d.firstChild.textContent = t; d.title = s; return d;
 }));
 fetch("/api/bench").then(r => r.json()).then(b => {
   const rows = Object.entries(b); $("bench").innerHTML = "";
