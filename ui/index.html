@@ -219,7 +219,9 @@ function renderResult(label, r, cls) {
   if (!r) return;
   if (r.error) return out([["  " + label + " ", cls], ["server error: " + r.error, "bad"]]);
   out([["  " + label + " ", cls], [(r.tool || "none").padEnd(16), "hi"], [fmtArgs(r.args), "dim"]]);
-  out([["      ", ""], r.ok ? ["-> " + r.say, "ok"] : ["-> failed: " + r.result, "bad"], [`   ${r.secs}s · ${r.calls} call${r.calls == 1 ? "" : "s"} · ${r.tok_out} tok out`, "dim"]]);
+  const why = r.result === "parse_fail" ? "model did not produce a valid tool call" : r.result;
+  out([["      ", ""], r.ok ? ["-> " + r.say, "ok"] : ["-> failed: " + why, "bad"], [`   ${r.secs}s · ${r.calls} call${r.calls == 1 ? "" : "s"} · ${r.tok_out} tok out`, "dim"]]);
+  if (!r.ok && r.result === "parse_fail" && r.raw) out([["      model said: ", "dim"], [JSON.stringify(r.raw).slice(0, 110), "dim"]]);
 }
 
 async function ask(q) {

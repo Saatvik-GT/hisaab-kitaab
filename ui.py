@@ -82,7 +82,7 @@ def run_mode(fn, text, names):
     return dict(
         tool=tool, args=call[1] if call else None, result=str(result), ok=ok,
         say=demo.SAY[tool].format(r=result) if ok else None,
-        secs=round(secs, 2), calls=len(stats),
+        secs=round(secs, 2), calls=len(stats), raw=stats[-1].get("raw") if stats else None,
         tok_in=sum(s["prompt"] for s in stats), tok_out=sum(s["out"] for s in stats),
         tps=next((round(s["tps"], 1) for s in stats[::-1] if s["tps"]), None))
 

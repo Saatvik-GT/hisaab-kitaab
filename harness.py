@@ -51,9 +51,10 @@ def llm(messages, grammar=None, max_tokens=120, cache=True):
     except urllib.error.HTTPError as e:
         raise RuntimeError("server said: " + e.read().decode()) from None
     usage, timings = resp.get("usage", {}), resp.get("timings", {})
+    text = resp["choices"][0]["message"]["content"]
     STATS.append(dict(prompt=usage.get("prompt_tokens", 0), out=usage.get("completion_tokens", 0),
-                      secs=time.time() - t0, tps=timings.get("predicted_per_second")))
-    return resp["choices"][0]["message"]["content"]
+                      secs=time.time() - t0, tps=timings.get("predicted_per_second"), raw=text[:120]))
+    return text
 
 
 # --------------------------------------------------------------------- tools
