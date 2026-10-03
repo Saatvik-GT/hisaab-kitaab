@@ -76,10 +76,15 @@ i7-1185G7 CPU, temperature 0. "Right answer" means the right tool *and* the exac
 
 | Mode | Parsed | Right tool | Right answer | sec/task |
 |---|---|---|---|---|
-| A plain prompt | 11/20 | 7/20 | **4/20** | 3.1 |
-| B grammar | 20/20 | 13/20 | **9/20** | 3.1 |
-| N grammar + normaliser | 20/20 | 13/20 | **11/20** | 3.1 |
-| K + keyword shortlist | 20/20 | 20/20 | **17/20** | 3.0 |
+| A plain prompt | 11/20 | 7/20 | **4/20** | 1.0 |
+| B grammar | 20/20 | 13/20 | **9/20** | 1.0 |
+| N grammar + normaliser | 20/20 | 13/20 | **11/20** | 1.2 |
+| K + keyword shortlist | 20/20 | 20/20 | **17/20** | 0.9 |
+
+Each task is one short model call (about 40 output tokens at roughly 45 tokens/s). Latency is end to end
+including the HTTP request. Early runs showed ~3 s/task because Python resolved `localhost` via IPv6 first
+and waited ~2 s on every call on Windows; the code now uses `127.0.0.1` and the benchmark was re-run
+(accuracy unchanged).
 
 What each step teaches:
 - **Grammar** fixes the *shape* (every output parses) but not the *values*.
