@@ -40,6 +40,25 @@ python demo.py "5 lakh ka loan 8% pe 3 saal ka EMI kitna hoga?"
 ```
 Run `python demo.py` with no argument for an interactive prompt.
 
+### Terminal UI
+
+```
+python ui.py        # then open http://localhost:8765
+```
+
+A terminal-style page (standard library only, no build step). Type a question, or click an example in
+English, Hinglish, Hindi or Punjabi. Each query runs twice, the 1B model alone and through the harness,
+and both results print side by side. Side panels show live, real metrics:
+
+- **system:** CPU % and RAM of the machine (a CPU-only model makes this the interesting number)
+- **model server:** up/down, ping, generation speed in tokens/s, tokens in/out, model calls
+- **this session:** valid tool calls, model alone vs. harness, and latency per query
+- **benchmark:** the 20-task results table from `bench.json`
+
+Commands: `help`, `bench`, `baseline off|on` (skip the unaided run to halve latency), `clear`.
+"Valid tool call" in the session panel means the call parsed and the tool ran without error. It cannot
+know whether an arbitrary question got the *right* answer; that is what the 20-task benchmark measures.
+
 ## Harness modes
 
 | Mode | What it adds |
