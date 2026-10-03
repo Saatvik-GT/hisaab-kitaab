@@ -42,7 +42,7 @@ canvas.tall { height: 70px; }
 .up { color: var(--ok); } .down { color: var(--bad); }
 
 .bar { height: 7px; background: #0d1d23; margin: 3px 0 7px; }
-.bar > i { display: block; height: 100%; background: var(--fg); width: 0; transition: width .4s; }
+.bar > i { display: block; height: 100%; background: var(--fg); width: 100%; transform: scaleX(0); transform-origin: left; transition: transform .4s; }
 .bar.hi > i { background: var(--ok); }
 .bar.lo > i { background: var(--dim); }
 .line { display: grid; grid-template-columns: 54px 1fr 42px; gap: 8px; align-items: center; font-size: 11px; }
@@ -256,9 +256,9 @@ function record(r) {
 S.toolUse = {};
 
 function paintSession() {
-  const pct = ([a, b]) => b ? (100 * a / b) + "%" : "0%";
-  $("va").style.width = pct(S.valid.a); $("vat").textContent = S.valid.a.join("/");
-  $("vk").style.width = pct(S.valid.k); $("vkt").textContent = S.valid.k.join("/");
+  const frac = ([a, b]) => b ? a / b : 0;
+  $("va").style.transform = `scaleX(${frac(S.valid.a)})`; $("vat").textContent = S.valid.a.join("/");
+  $("vk").style.transform = `scaleX(${frac(S.valid.k)})`; $("vkt").textContent = S.valid.k.join("/");
   $("tin").textContent = S.tin; $("tout").textContent = S.tout; $("ncalls").textContent = S.calls;
   $("tpsv").textContent = S.tps.length ? S.tps[S.tps.length - 1].toFixed(1) : "--";
   document.querySelectorAll("#tools div").forEach(d => { d.lastChild.textContent = S.toolUse[d.dataset.t] ? "×" + S.toolUse[d.dataset.t] : d.dataset.s; });
@@ -300,7 +300,7 @@ fetch("/api/bench").then(r => r.json()).then(b => {
     d.innerHTML = `<span></span><div class="bar ${last ? "hi" : "lo"}"><i></i></div><span></span>`;
     d.children[0].textContent = m.split(" ")[0]; d.children[2].textContent = r.result_ok + "/" + r.n;
     d.title = m + ": parsed " + r.parsed + ", right tool " + r.tool_ok + ", right answer " + r.result_ok + " of " + r.n;
-    $("bench").appendChild(d); requestAnimationFrame(() => d.querySelector("i").style.width = (100 * r.result_ok / r.n) + "%");
+    $("bench").appendChild(d); requestAnimationFrame(() => d.querySelector("i").style.transform = `scaleX(${r.result_ok / r.n})`);
   });
 }).catch(() => {});
 
@@ -312,7 +312,7 @@ async function poll() {
     $("ping").textContent = s.ping ?? "--";
     $("modelname").textContent = (s.model || "").split("/").pop().replace(/:.*/, "").replace("-GGUF", "").toLowerCase();
     if (s.cpu != null) { S.cpu.push(s.cpu); if (S.cpu.length > 60) S.cpu.shift(); $("cpuv").textContent = Math.round(s.cpu); }
-    if (s.ram_total) { $("ramv").textContent = s.ram_used + " / " + s.ram_total; $("ramb").style.width = (100 * s.ram_used / s.ram_total) + "%"; }
+    if (s.ram_total) { $("ramv").textContent = s.ram_used + " / " + s.ram_total; $("ramb").style.transform = `scaleX(${s.ram_used / s.ram_total})`; }
   } catch (e) { $("state").textContent = "ui server lost"; $("state").className = "v down"; }
   redraw();
 }
