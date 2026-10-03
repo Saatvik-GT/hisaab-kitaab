@@ -55,6 +55,12 @@ and both results print side by side. Side panels show live, real metrics:
 - **this session:** valid tool calls, model alone vs. harness, and latency per query
 - **benchmark:** the 20-task results table from `bench.json`
 
+**Hosted replay.** `docs/` is a static copy of the same page that plays back answers recorded from real runs
+(all 30 benchmark tasks, failures included, plus real CPU/RAM samples). No model runs there, the page
+says so on screen, and it only answers the recorded questions. Anything else needs the live local version.
+Regenerate it with `python make_site.py` (needs the model server running). Host `docs/` on any static
+host (GitHub Pages "main /docs", Vercel with root directory `docs`).
+
 Commands: `help`, `bench`, `baseline off|on` (skip the unaided run to halve latency), `clear`.
 "Valid tool call" in the session panel means the call parsed and the tool ran without error. It cannot
 know whether an arbitrary question got the *right* answer; that is what the 20-task benchmark measures.
