@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+results_cache.json
+files/
+test.py
+CLAUDE.md
+CLAUDE.MD
