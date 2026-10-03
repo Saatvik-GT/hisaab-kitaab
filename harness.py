@@ -23,7 +23,8 @@ import time
 import urllib.error
 import urllib.request
 
-URL = "http://localhost:9931/v1/chat/completions"
+# 127.0.0.1, not "localhost": on Windows Python tries IPv6 first and waits ~2 s before falling back
+URL = "http://127.0.0.1:9931/v1/chat/completions"
 MODEL = "ggml-org/gemma-3-1b-it-qat-GGUF:Q4_0"
 
 

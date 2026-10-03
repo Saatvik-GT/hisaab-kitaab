@@ -4,27 +4,27 @@
   "parsed": 11,
   "tool_ok": 7,
   "result_ok": 4,
-  "sec_per_task": 3.05
+  "sec_per_task": 0.95
  },
  "B grammar": {
   "n": 20,
   "parsed": 20,
   "tool_ok": 13,
   "result_ok": 9,
-  "sec_per_task": 3.13
+  "sec_per_task": 1.04
  },
  "N grammar+norm": {
   "n": 20,
   "parsed": 20,
   "tool_ok": 13,
   "result_ok": 11,
-  "sec_per_task": 3.13
+  "sec_per_task": 1.16
  },
  "K shortlist": {
   "n": 20,
   "parsed": 20,
   "tool_ok": 20,
   "result_ok": 17,
-  "sec_per_task": 3.0
+  "sec_per_task": 0.94
  }
 }
