@@ -26,5 +26,33 @@
   "tool_ok": 20,
   "result_ok": 17,
   "sec_per_task": 0.94
+ },
+ "A plain JSON (unseen)": {
+  "n": 10,
+  "parsed": 5,
+  "tool_ok": 3,
+  "result_ok": 1,
+  "sec_per_task": 1.0
+ },
+ "B grammar (unseen)": {
+  "n": 10,
+  "parsed": 10,
+  "tool_ok": 5,
+  "result_ok": 3,
+  "sec_per_task": 1.05
+ },
+ "N grammar+norm (unseen)": {
+  "n": 10,
+  "parsed": 10,
+  "tool_ok": 5,
+  "result_ok": 4,
+  "sec_per_task": 1.18
+ },
+ "K shortlist (unseen)": {
+  "n": 10,
+  "parsed": 10,
+  "tool_ok": 8,
+  "result_ok": 5,
+  "sec_per_task": 1.22
  }
 }

@@ -86,6 +86,27 @@ including the HTTP request. Early runs showed ~3 s/task because Python resolved 
 and waited ~2 s on every call on Windows; the code now uses `127.0.0.1` and the benchmark was re-run
 (accuracy unchanged).
 
+### Unseen tasks (10)
+
+Written after the modes were built and **not** used to tune any cue word or prompt. Some phrasings
+deliberately fall outside the keyword cues ("markdown", "kilograms", a home loan with no "EMI").
+Reproduce with `python harness.py ABNK holdout`.
+
+| Mode | Right tool | Right answer |
+|---|---|---|
+| A plain prompt | 3/10 | **1/10** |
+| B grammar | 5/10 | **3/10** |
+| N grammar + normaliser | 5/10 | **4/10** |
+| K + keyword shortlist | 8/10 | **5/10** |
+
+K drops from 17/20 on the development tasks to 5/10 on unseen ones, so the development number overstates
+it. K still beats the unaided model (1/10) and grammar alone (3/10), but only about half the unseen
+answers are right. Its misses: a discount phrased as "markdown" and a home loan with no "EMI" word
+(both fall outside the cues), a missed "remove tax" (adds instead), a dropped `* 2` in a calculation,
+and "ek lakh" written as words (the model wrote 120000).
+These tasks were written with the tools and cues known to the author (and an AI assistant), so they are
+not fully blind; independent testers would likely find more failures.
+
 What each step teaches:
 - **Grammar** fixes the *shape* (every output parses) but not the *values*.
 - **Normaliser** fixes the lakh/crore argument errors (+2).
@@ -96,8 +117,9 @@ What each step teaches:
 
 ## Limitations (read these)
 
-- **The shortlist is tuned on the same 20 tasks.** I wrote the cue words after seeing them, so K's 20/20
-  tool choice does not show it generalises. A held-out set of unseen phrasings has not been run yet.
+- **The shortlist is tuned on the 20 development tasks.** I wrote the cue words after seeing them, so K's
+  20/20 tool choice there does not show it generalises. On 10 unseen tasks K gets 8/10 right tools and
+  5/10 right answers (see above). That is the number to trust.
   In mode K the model effectively no longer chooses the tool (the shortlist usually has exactly one);
   the model's job there is extracting numbers.
 - **Mode C is a negative result.** It asks the model YES/NO for each tool. The 1B model says YES to

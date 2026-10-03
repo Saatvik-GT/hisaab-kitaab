@@ -322,6 +322,23 @@ TASKS = [
 ]
 
 
+# Unseen tasks: written after the modes were built and NOT used to tune any cue word or prompt.
+# Some phrasings deliberately fall outside the keyword cues (markdown, kilograms, a loan with no "EMI").
+# Run with:  python harness.py ABNK holdout
+TASKS_HOLDOUT = [
+    ("mera bill 2360 hai, usme se 18% tax nikalo", "gst", "2000.0"),
+    ("ek lakh rupaye pe 12 percent saalana byaaj, 3 saal ka kitna banega?", "simple_interest", "36000.0"),
+    ("What would a 4500 rupee jacket cost after a 30% markdown?", "discount", "3150.0"),
+    ("How much is 8% of 12500?", "percent", "1000.0"),
+    ("मुझे 10 लाख का होम लोन 9% पर 20 साल के लिए चाहिए, हर महीने कितना भरना होगा?", "emi", "8997.26"),
+    ("Convert 72 kilograms to pounds", "convert", "158.733"),
+    ("100 degrees Celsius is how many Fahrenheit?", "convert", "212.0"),
+    ("ਮੈਨੂੰ 15000 ਰੁਪਏ ਤੇ 5% ਜੀਐਸਟੀ ਲਗਾ ਕੇ ਕੁੱਲ ਕਿੰਨਾ ਬਣੇਗਾ?", "gst", "15750.0"),
+    ("kitne km hote hain 50 miles mein?", "convert", "80.467"),
+    ("(250 + 350) * 2 kitna hota hai", "calculator", "1200"),
+]
+
+
 def run_call(call):
     if call is None:
         return None, "parse_fail"
@@ -343,12 +360,15 @@ def evaluate():
     bench = json.load(open(BENCH_FILE, encoding="utf-8")) if os.path.exists(BENCH_FILE) else {}
     cache = json.load(open(CACHE_FILE, encoding="utf-8")) if os.path.exists(CACHE_FILE) else {}
     print("%-14s %8s %8s %8s %8s" % ("mode", "parsed", "tool_ok", "result_ok", "sec/task"))
+    holdout = "holdout" in sys.argv[1:]
+    tasks = TASKS_HOLDOUT if holdout else TASKS
+    letters = [a for a in sys.argv[1:] if a != "holdout"]
     for mode_name, fn in MODES.items():
-        if len(sys.argv) > 1 and mode_name[0] not in sys.argv[1].upper():
+        if letters and mode_name[0] not in letters[0].upper():
             continue  # e.g. `python harness.py C` runs only mode C
         parsed = tool_ok = result_ok = 0
         secs = 0.0
-        for text, want_tool, want_text in TASKS:
+        for text, want_tool, want_text in tasks:
             key = mode_name + "|" + text
             if key not in cache:  # finished tasks survive a server hang: just re-run
                 t0 = time.time()
@@ -367,10 +387,10 @@ def evaluate():
             if want_text is not None:
                 good = good and want_text in str(result)
             result_ok += good
-        n = len(TASKS)
+        n = len(tasks)
         print("%-14s %5d/%d %5d/%d %6d/%d %8.1f" % (
             mode_name, parsed, n, tool_ok, n, result_ok, n, secs / n))
-        bench[mode_name] = dict(n=n, parsed=parsed, tool_ok=tool_ok, result_ok=result_ok,
+        bench[mode_name + (" (unseen)" if holdout else "")] = dict(n=n, parsed=parsed, tool_ok=tool_ok, result_ok=result_ok,
                                 sec_per_task=round(secs / n, 2))
         with open(BENCH_FILE, "w", encoding="utf-8") as f:
             json.dump(bench, f, indent=1, ensure_ascii=False)

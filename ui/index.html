@@ -124,7 +124,7 @@ canvas.tall { height: 70px; }
     </section>
 
     <section class="panel"><h2>benchmark · 20 tasks</h2>
-      <div class="k" style="margin-bottom:5px">right answer</div>
+      <div class="k" style="margin-bottom:5px">right answer · "new" = 10 unseen tasks</div>
       <div id="bench"></div>
     </section>
   </div>
@@ -299,9 +299,9 @@ fetch("/api/bench").then(r => r.json()).then(b => {
   const rows = Object.entries(b); $("bench").innerHTML = "";
   rows.forEach(([m, r], i) => {
     const d = document.createElement("div"); d.className = "line";
-    const last = i === rows.length - 1;
-    d.innerHTML = `<span></span><div class="bar ${last ? "hi" : "lo"}"><i></i></div><span></span>`;
-    d.children[0].textContent = m.split(" ")[0]; d.children[2].textContent = r.result_ok + "/" + r.n;
+    const unseen = m.includes("unseen");
+    d.innerHTML = `<span></span><div class="bar ${m.startsWith("K") ? "hi" : "lo"}"><i></i></div><span></span>`;
+    d.children[0].textContent = m.split(" ")[0] + (unseen ? " new" : ""); d.children[2].textContent = r.result_ok + "/" + r.n;
     d.title = m + ": parsed " + r.parsed + ", right tool " + r.tool_ok + ", right answer " + r.result_ok + " of " + r.n;
     $("bench").appendChild(d); requestAnimationFrame(() => d.querySelector("i").style.transform = `scaleX(${r.result_ok / r.n})`);
   });
