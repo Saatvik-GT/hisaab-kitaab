@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hisaab-kitaab</title>
+<style>
+:root {
+  --bg: #05090d;
+  --panel: #070d12;
+  --line: #1a3840;
+  --dim: #4f737a;
+  --fg: #a9d4da;
+  --hi: #d8f4f7;
+  --ok: #7fe3d0;
+  --bad: #e2a24b;
+  --mono: "Cascadia Mono", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.45 var(--mono); }
+body { display: grid; grid-template-rows: 30px 1fr 118px; gap: 10px; padding: 8px 10px 10px; overflow: hidden; }
+
+header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; color: var(--dim);
+         font-size: 11px; letter-spacing: .12em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+header .mid { color: var(--hi); font-size: 20px; letter-spacing: .08em; }
+header .r { text-align: right; }
+header b { color: var(--fg); font-weight: 400; }
+
+main { display: grid; grid-template-columns: 270px 1fr 300px; gap: 10px; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+
+.panel { position: relative; border: 1px solid var(--line); background: var(--panel); padding: 14px 10px 9px; min-height: 0; }
+.panel > h2 { position: absolute; top: -7px; left: 10px; padding: 0 6px; background: var(--bg);
+              font-size: 10px; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.k { color: var(--dim); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.v { color: var(--hi); }
+.big { font-size: 22px; color: var(--hi); line-height: 1.1; }
+.unit { font-size: 11px; color: var(--dim); margin-left: 3px; }
+canvas { display: block; width: 100%; height: 54px; margin-top: 4px; }
+canvas.tall { height: 70px; }
+.up { color: var(--ok); } .down { color: var(--bad); }
+
+.bar { height: 7px; background: #0d1d23; margin: 3px 0 7px; }
+.bar > i { display: block; height: 100%; background: var(--fg); width: 0; transition: width .4s; }
+.bar.hi > i { background: var(--ok); }
+.bar.lo > i { background: var(--dim); }
+.line { display: grid; grid-template-columns: 54px 1fr 42px; gap: 8px; align-items: center; font-size: 11px; }
+.line .bar { margin: 0; }
+.line span:last-child { text-align: right; color: var(--hi); }
+.legend { display: flex; gap: 14px; font-size: 10px; color: var(--dim); letter-spacing: .08em; margin-top: 4px; }
+.legend i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; }
+
+/* terminal */
+#termwrap { display: flex; flex-direction: column; min-height: 0; }
+#term { flex: 1; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+#term .l { white-space: pre-wrap; word-break: break-word; }
+#term .cmd { color: var(--hi); margin-top: 8px; }
+.dim { color: var(--dim); } .hi { color: var(--hi); } .ok { color: var(--ok); } .bad { color: var(--bad); }
+#inputrow { display: flex; gap: 8px; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
+#prompt { color: var(--ok); white-space: nowrap; }
+#in { flex: 1; background: transparent; border: 0; outline: 0; color: var(--hi); font: inherit; caret-color: var(--ok); }
+#in:disabled { opacity: .5; }
+
+/* bottom: examples */
+#bottom { display: grid; grid-template-columns: 1fr 300px; gap: 10px; min-height: 0; }
+#chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chip { text-align: left; background: transparent; border: 1px solid var(--line); color: var(--fg); font: inherit; font-size: 11px;
+        padding: 5px 8px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip:hover { border-color: var(--fg); color: var(--hi); }
+.chip small { display: block; color: var(--dim); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+#tools div { display: flex; justify-content: space-between; font-size: 11px; }
+#tools { column-count: 2; column-gap: 14px; }
+
+@media (max-width: 1000px) {
+  body { overflow: auto; height: auto; grid-template-rows: auto; }
+  main { grid-template-columns: 1fr; } #bottom { grid-template-columns: 1fr; }
+  #chips { grid-template-columns: repeat(2, 1fr); } #termwrap { height: 70vh; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>hisaab-kitaab <span class="dim">/ offline everyday maths</span></div>
+  <div class="mid" id="clock">--:--:--</div>
+  <div class="r"><b id="modelname">gemma-3-1b-it</b> · q4_0 · cpu only</div>
+</header>
+
+<main>
+  <div class="col">
+    <section class="panel"><h2>system</h2>
+      <div class="row"><span class="k">cpu</span><span class="big"><span id="cpuv">--</span><span class="unit">%</span></span></div>
+      <canvas id="cpug"></canvas>
+      <div class="row" style="margin-top:8px"><span class="k">ram</span><span class="v"><span id="ramv">--</span><span class="unit">GB</span></span></div>
+      <div class="bar"><i id="ramb"></i></div>
+    </section>
+
+    <section class="panel"><h2>model server</h2>
+      <div class="row"><span class="k">state</span><span id="state" class="v">--</span></div>
+      <div class="row"><span class="k">ping</span><span class="v"><span id="ping">--</span><span class="unit">ms</span></span></div>
+      <div class="row" style="margin-top:8px"><span class="k">generation</span><span class="big"><span id="tpsv">--</span><span class="unit">tok/s</span></span></div>
+      <canvas id="tpsg"></canvas>
+      <div class="row" style="margin-top:8px"><span class="k">tokens in</span><span class="v" id="tin">0</span></div>
+      <div class="row"><span class="k">tokens out</span><span class="v" id="tout">0</span></div>
+      <div class="row"><span class="k">model calls</span><span class="v" id="ncalls">0</span></div>
+    </section>
+  </div>
+
+  <section class="panel" id="termwrap"><h2>terminal</h2>
+    <div id="term"></div>
+    <div id="inputrow"><span id="prompt">hisaab@gemma:~$</span><input id="in" autocomplete="off" spellcheck="false" autofocus></div>
+  </section>
+
+  <div class="col">
+    <section class="panel"><h2>this session</h2>
+      <div class="k" style="margin-bottom:4px">valid tool calls</div>
+      <div class="line"><span>1B alone</span><div class="bar lo"><i id="va"></i></div><span id="vat">0/0</span></div>
+      <div class="line"><span>harness</span><div class="bar hi"><i id="vk"></i></div><span id="vkt">0/0</span></div>
+      <div class="k" style="margin:9px 0 4px">latency per query, s</div>
+      <canvas id="latg" class="tall"></canvas>
+      <div class="legend"><span><i style="background:var(--dim)"></i>1B alone</span><span><i style="background:var(--ok)"></i>harness</span></div>
+    </section>
+
+    <section class="panel"><h2>benchmark · 20 tasks</h2>
+      <div class="k" style="margin-bottom:5px">right answer</div>
+      <div id="bench"></div>
+    </section>
+  </div>
+</main>
+
+<div id="bottom">
+  <section class="panel"><h2>examples · click to run</h2><div id="chips"></div></section>
+  <section class="panel"><h2>tools</h2><div id="tools"></div></section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const EXAMPLES = [
+  ["hinglish", "5 lakh ka loan 8% pe 3 saal ka EMI kitna hoga?"],
+  ["english",  "Add 18% GST to 1000 rupees"],
+  ["hindi",    "2400 का 15 प्रतिशत कितना होता है?"],
+  ["punjabi",  "ਦੁਕਾਨਦਾਰ 800 ਦੀ ਚੀਜ਼ ਤੇ 25% ਛੋਟ ਦੇ ਰਿਹਾ ਹੈ, ਕੀਮਤ ਕੀ ਹੋਵੇਗੀ?"],
+  ["hinglish", "25 kg kitne pounds hote hain?"],
+  ["english",  "Simple interest on 10000 at 5% for 2 years"],
+  ["hindi",    "1500 की शर्ट पर 20 परसेंट छूट है, कितने देने होंगे?"],
+  ["punjabi",  "ਮੈਨੂੰ 2 ਲੱਖ ਦੇ ਲੋਨ ਤੇ 10% ਵਿਆਜ ਨਾਲ 2 ਸਾਲ ਦੀ EMI ਦੱਸੋ"],
+];
+const TOOLS = [["calculator","+ - * /"],["convert","km mi kg lb c f"],["emi","loan instalment"],["gst","add / remove"],
+               ["percent","x% of y"],["discount","price after off"],["simple_interest","byaaj"]];
+
+const S = { cpu: [], tps: [], lat: [], valid: { a: [0, 0], k: [0, 0] }, tin: 0, tout: 0, calls: 0, baseline: true, busy: false, hist: [], hi: -1 };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- drawing ---------- */
+function setup(cv) {
+  const d = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * d; cv.height = h * d;
+  const c = cv.getContext("2d"); c.scale(d, d); c.clearRect(0, 0, w, h);
+  c.strokeStyle = css("--line"); c.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const y = Math.round(i * (h - 1) / 4) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+  return [c, w, h];
+}
+function lineGraph(cv, data, max, N = 60) {
+  const [c, w, h] = setup(cv);
+  if (data.length < 2) return;
+  const top = max || Math.max(1, ...data) * 1.2, pts = data.map((v, i) => [w - (data.length - 1 - i) * (w / (N - 1)), h - 2 - (h - 4) * Math.min(v, top) / top]);
+  c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y));
+  c.strokeStyle = css("--fg"); c.lineWidth = 1.5; c.stroke();
+  c.lineTo(pts[pts.length - 1][0], h); c.lineTo(pts[0][0], h); c.closePath();
+  c.fillStyle = "rgba(169,212,218,.10)"; c.fill();
+}
+function pairBars(cv, rows, N = 14) {
+  const [c, w, h] = setup(cv);
+  if (!rows.length) return;
+  const top = Math.max(1, ...rows.flatMap(r => [r.a || 0, r.k || 0])) * 1.1, slot = w / N, bw = Math.max(3, slot / 2 - 2);
+  rows.slice(-N).forEach((r, i) => {
+    const x = i * slot + 1;
+    [["a", css("--dim")], ["k", css("--ok")]].forEach(([key, col], j) => {
+      if (r[key] == null) return;
+      const bh = Math.max(2, (h - 2) * r[key] / top); c.fillStyle = col; c.fillRect(x + j * (bw + 1), h - bh, bw, bh);
+    });
+  });
+}
+function redraw() {
+  lineGraph($("cpug"), S.cpu, 100);
+  lineGraph($("tpsg"), S.tps, null, 30);
+  pairBars($("latg"), S.lat);
+}
+
+/* ---------- terminal ---------- */
+const term = $("term");
+function out(parts, cls = "") {
+  const d = document.createElement("div"); d.className = "l " + cls;
+  (Array.isArray(parts) ? parts : [[parts]]).forEach(([t, c]) => { const s = document.createElement("span"); s.textContent = t; if (c) s.className = c; d.appendChild(s); });
+  term.appendChild(d); term.scrollTop = term.scrollHeight; return d;
+}
+const fmtArgs = a => a ? Object.entries(a).map(([k, v]) => k + "=" + v).join(" ") : "none";
+function banner() {
+  out([["hisaab-kitaab ", "hi"], ["· offline money maths for a 1B model", "dim"]]);
+  out("type a question in english, hinglish, hindi or punjabi. type help for commands.", "dim");
+}
+function help() {
+  [["help", "this list"], ["bench", "print the 20-task results table"], ["baseline off|on", "skip / include the unaided 1B run (halves latency)"],
+   ["clear", "clear the screen"]].forEach(([c, d]) => out([["  " + c.padEnd(17), "hi"], [d, "dim"]]));
+  out("anything else is sent to the model.", "dim");
+}
+
+async function bench() {
+  const b = await (await fetch("/api/bench")).json();
+  if (!Object.keys(b).length) return out("no bench.json yet: run python harness.py", "bad");
+  out([["  " + "mode".padEnd(16) + "parsed  tool  answer  s/task", "dim"]]);
+  for (const [m, r] of Object.entries(b))
+    out([["  " + m.padEnd(16), "hi"], [`${r.parsed}/${r.n}`.padEnd(8) + `${r.tool_ok}/${r.n}`.padEnd(6) + `${r.result_ok}/${r.n}`.padEnd(8) + r.sec_per_task, ""]]);
+}
+
+function renderResult(label, r, cls) {
+  if (!r) return;
+  if (r.error) return out([["  " + label + " ", cls], ["server error: " + r.error, "bad"]]);
+  out([["  " + label + " ", cls], [(r.tool || "none").padEnd(16), "hi"], [fmtArgs(r.args), "dim"]]);
+  out([["      ", ""], r.ok ? ["-> " + r.say, "ok"] : ["-> failed: " + r.result, "bad"], [`   ${r.secs}s · ${r.calls} call${r.calls == 1 ? "" : "s"} · ${r.tok_out} tok out`, "dim"]]);
+}
+
+async function ask(q) {
+  S.busy = true; $("in").disabled = true; $("prompt").textContent = "running…";
+  out([["> ", "ok"], [q, "hi"]], "cmd");
+  const t0 = performance.now(), spin = out("  thinking…", "dim");
+  const tick = setInterval(() => spin.textContent = "  thinking… " + ((performance.now() - t0) / 1000).toFixed(0) + "s", 500);
+  try {
+    const r = await (await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q, baseline: S.baseline }) })).json();
+    spin.remove();
+    out([["  clean     ", "dim"], [r.clean, ""]]);
+    out([["  shortlist ", "dim"], [r.shortlist.join(", "), ""]]);
+    renderResult("1B alone", r.a, "dim");
+    renderResult("harness ", r.k, "ok");
+    record(r);
+  } catch (e) {
+    spin.remove(); out("  request failed: " + e, "bad");
+  } finally {
+    clearInterval(tick); S.busy = false; $("in").disabled = false; $("prompt").textContent = "hisaab@gemma:~$"; $("in").focus();
+  }
+}
+
+function record(r) {
+  for (const [key, m] of [["a", r.a], ["k", r.k]]) {
+    if (!m) continue;
+    S.valid[key][1]++; if (m.ok) S.valid[key][0]++;
+    S.tin += m.tok_in || 0; S.tout += m.tok_out || 0; S.calls += m.calls || 0;
+  }
+  if (r.k && r.k.tps) S.tps.push(r.k.tps);
+  if (r.a && r.a.tps) S.tps.push(r.a.tps);
+  S.lat.push({ a: r.a ? r.a.secs : null, k: r.k.secs });
+  if (r.k && r.k.tool) S.toolUse[r.k.tool] = (S.toolUse[r.k.tool] || 0) + 1;
+  paintSession();
+}
+S.toolUse = {};
+
+function paintSession() {
+  const pct = ([a, b]) => b ? (100 * a / b) + "%" : "0%";
+  $("va").style.width = pct(S.valid.a); $("vat").textContent = S.valid.a.join("/");
+  $("vk").style.width = pct(S.valid.k); $("vkt").textContent = S.valid.k.join("/");
+  $("tin").textContent = S.tin; $("tout").textContent = S.tout; $("ncalls").textContent = S.calls;
+  $("tpsv").textContent = S.tps.length ? S.tps[S.tps.length - 1].toFixed(1) : "--";
+  document.querySelectorAll("#tools div").forEach(d => { d.lastChild.textContent = S.toolUse[d.dataset.t] ? "×" + S.toolUse[d.dataset.t] : d.dataset.s; });
+  redraw();
+}
+
+$("in").addEventListener("keydown", e => {
+  const el = e.target;
+  if (e.key === "ArrowUp" && S.hist.length) { S.hi = Math.max(0, (S.hi < 0 ? S.hist.length : S.hi) - 1); el.value = S.hist[S.hi]; e.preventDefault(); }
+  else if (e.key === "ArrowDown" && S.hi >= 0) { S.hi++; el.value = S.hist[S.hi] || ""; if (S.hi >= S.hist.length) S.hi = -1; e.preventDefault(); }
+  else if (e.key === "Enter" && !S.busy) {
+    const q = el.value.trim(); el.value = ""; S.hi = -1; if (!q) return;
+    S.hist.push(q);
+    const w = q.toLowerCase();
+    if (w === "help") { out([["> ", "ok"], [q, "hi"]], "cmd"); help(); }
+    else if (w === "clear") term.innerHTML = "";
+    else if (w === "bench") { out([["> ", "ok"], [q, "hi"]], "cmd"); bench(); }
+    else if (w.startsWith("baseline")) { S.baseline = !w.endsWith("off"); out([["> ", "ok"], [q, "hi"]], "cmd"); out("  baseline " + (S.baseline ? "on" : "off"), "dim"); }
+    else ask(q);
+  }
+});
+document.addEventListener("click", e => { if (!e.target.closest(".chip") && getSelection().isCollapsed) $("in").focus(); });
+
+/* ---------- static panels ---------- */
+$("chips").append(...EXAMPLES.map(([lang, q]) => {
+  const b = document.createElement("button"); b.className = "chip"; b.title = q;
+  b.innerHTML = "<small></small><span></span>"; b.firstChild.textContent = lang; b.lastChild.textContent = q;
+  b.onclick = () => { if (!S.busy) ask(q); }; return b;
+}));
+$("tools").append(...TOOLS.map(([t, s]) => {
+  const d = document.createElement("div"); d.dataset.t = t; d.dataset.s = s;
+  d.innerHTML = "<span class='dim'></span><span class='dim'></span>"; d.firstChild.textContent = t; d.lastChild.textContent = s; return d;
+}));
+fetch("/api/bench").then(r => r.json()).then(b => {
+  const rows = Object.entries(b); $("bench").innerHTML = "";
+  rows.forEach(([m, r], i) => {
+    const d = document.createElement("div"); d.className = "line";
+    const last = i === rows.length - 1;
+    d.innerHTML = `<span></span><div class="bar ${last ? "hi" : "lo"}"><i></i></div><span></span>`;
+    d.children[0].textContent = m.split(" ")[0]; d.children[2].textContent = r.result_ok + "/" + r.n;
+    d.title = m + ": parsed " + r.parsed + ", right tool " + r.tool_ok + ", right answer " + r.result_ok + " of " + r.n;
+    $("bench").appendChild(d); requestAnimationFrame(() => d.querySelector("i").style.width = (100 * r.result_ok / r.n) + "%");
+  });
+}).catch(() => {});
+
+/* ---------- live polling ---------- */
+async function poll() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    $("state").textContent = s.up ? "online" : "offline"; $("state").className = "v " + (s.up ? "up" : "down");
+    $("ping").textContent = s.ping ?? "--";
+    $("modelname").textContent = (s.model || "").split("/").pop().replace(/:.*/, "").replace("-GGUF", "").toLowerCase();
+    if (s.cpu != null) { S.cpu.push(s.cpu); if (S.cpu.length > 60) S.cpu.shift(); $("cpuv").textContent = Math.round(s.cpu); }
+    if (s.ram_total) { $("ramv").textContent = s.ram_used + " / " + s.ram_total; $("ramb").style.width = (100 * s.ram_used / s.ram_total) + "%"; }
+  } catch (e) { $("state").textContent = "ui server lost"; $("state").className = "v down"; }
+  redraw();
+}
+setInterval(poll, 1000); poll();
+setInterval(() => $("clock").textContent = new Date().toLocaleTimeString("en-GB"), 1000);
+addEventListener("resize", redraw);
+banner();
+</script>
+</body>
+</html>
